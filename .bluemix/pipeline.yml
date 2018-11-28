@@ -1,45 +1,46 @@
+---
 stages:
 - name: Build Stage
   inputs:
   - type: git
-    branch: master
     service: ${REPO}
+    # TODO: Replace with master once merged
+    branch: add-headless-toolchain
+    dir_name: null
   triggers:
   - type: commit
+  permission:
+    execute: TOOLCHAIN_ADMINS
   jobs:
   - name: Build
     type: builder
     artifact_dir: ''
-  - name: Post Build
-    type: builder
-    artifact_dir: ''
-    build_type: shell
-    script: |-
-      #!/bin/bash
-      if  [[ -f post_build.sh ]]; then
-        chmod +x post_build.sh;
-        echo "executing the post_build script";
-        sh post_build.sh;
-      else
-        echo "the post_build script does not exist";
-      fi
 - name: Deploy Stage
   inputs:
   - type: job
     stage: Build Stage
     job: Build
+    dir_name: null
   triggers:
   - type: stage
+  permission:
+    execute: TOOLCHAIN_ADMINS
   jobs:
   - name: Deploy
     type: deployer
+    deploy_type: cf
     target:
-      region_id: ${REGION_ID}
-      organization: ${CF_ORGANIZATION}
-      space: ${CF_SPACE}
-      application: ${CF_APP}
+      region_id: ${PROD_REGION_ID}
+      organization: ${PROD_ORG_NAME}
+      space: ${PROD_SPACE_NAME}
+      application: ${CF_APP_NAME}
       api_key: ${API_KEY}
     script: |-
       #!/bin/bash
       cf push "${CF_APP}"
       # cf logs "${CF_APP}" --recent
+hooks:
+- enabled: true
+  label: null
+  ssl_enabled: false
+  url: http://lms-api/v1/messaging/webhook/publish
